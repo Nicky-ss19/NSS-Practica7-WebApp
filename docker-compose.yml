@@ -1,0 +1,51 @@
+# Mi app web con base de datos para la Práctica 7 de Electiva 2 (DevOps)
+services:
+
+  # El servidor de aplicación: PHP con Apache, construido con mi Dockerfile
+  app:
+    build: .
+    container_name: practica7-app
+    ports:
+      - "8080:80"
+    # Mi carpeta src conectada al contenedor, así los cambios se ven al instante
+    volumes:
+      - ./src:/var/www/html
+    # Los datos para conectarse a la base de datos (los lee mi index.php)
+    environment:
+      DB_HOST: db
+      DB_NAME: practica7
+      DB_USER: nicky
+      DB_PASSWORD: clave_nicky_2026
+    # La app no arranca hasta que MySQL esté listo de verdad
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # La base de datos MySQL
+  db:
+    image: mysql:8.4
+    container_name: practica7-db
+    # MySQL usa estas variables para crear la base de datos y el usuario la primera vez
+    environment:
+      MYSQL_ROOT_PASSWORD: root_nicky_2026
+      MYSQL_DATABASE: practica7
+      MYSQL_USER: nicky
+      MYSQL_PASSWORD: clave_nicky_2026
+    volumes:
+      # Los datos se guardan en un volumen, así no se pierden si apago los contenedores
+      - datos-mysql:/var/lib/mysql
+      # Mi init.sql se ejecuta solito la primera vez que arranca MySQL
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Docker revisa cada 10 segundos si MySQL ya está listo para recibir conexiones
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+# El volumen donde MySQL guarda sus datos
+volumes:
+  datos-mysql:
